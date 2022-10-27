@@ -16,6 +16,7 @@ logging.basicConfig(
 
 
 class ErrorResponse(Exception):
+    """Error"""
     pass
 
 
