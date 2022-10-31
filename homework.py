@@ -4,7 +4,15 @@ import sys
 import time
 import requests
 import telegram
-from exceptions import *
+from exceptions import (ErrorResponse,
+                        EmptyValue,
+                        UnknownStatusHW,
+                        CurrentDateError,
+                        TelegramError,
+                        BadAPIRequest,
+                        WrongKeyHomeworks,
+
+                        )
 
 from dotenv import load_dotenv
 
@@ -121,7 +129,6 @@ def main():
         sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time() - 30 * 24 * 60 * 60)
-    status = ''
     previous_error = {}
     current_error = {}
     while True:
