@@ -4,22 +4,11 @@ import sys
 import time
 import requests
 import telegram
+from exceptions import *
 
 from dotenv import load_dotenv
 
 load_dotenv()
-
-logging.basicConfig(
-    format='%(asctime)s %(levelname)s %(name)s %(message)s',
-    level=logging.INFO
-)
-
-
-class ErrorResponse(Exception):
-    """Error."""
-
-    pass
-
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -40,9 +29,12 @@ def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.info('Бот успешно отправил сообщение')
-    except Exception as error:
-        logging.error(f'Не удалось отправить сообщение в Telegram: {error}')
+        logging.info('Отправляем сообщение')
+    except TelegramError:
+        raise TelegramError(f'Сбои при отправке сообщения в Telegram: '
+                            f'{message}')
+    else:
+        logging.info(f'Сообщение успешно отправлено: {message}')
 
 
 def get_api_answer(current_timestamp):
@@ -51,12 +43,14 @@ def get_api_answer(current_timestamp):
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+        logging.info(f'Отправляем запрос к API. endpoint: {ENDPOINT},'
+                     f'headers: {HEADERS}, params: {params}')
     except Exception as error:
         logging.error(f'Ошибка при запросе к основному API: {error}')
-        raise ErrorResponse.BadAPIRequest(error)
+        raise BadAPIRequest(error)
     if response.status_code != 200:
         error = f'Неудовлетворительный статус ответа: {response.status_code}'
-        raise ErrorResponse.BadResponseStatus(error)
+        raise ErrorResponse(error)
     return response.json()
 
 
@@ -67,15 +61,17 @@ def check_response(response):
         raise TypeError(error)
     if 'homeworks' not in response:
         error = f'Ключа homeworks в ответе нет: {response}'
-        raise ErrorResponse.WrongKeyHomeworks(error)
+        raise WrongKeyHomeworks(error)
     homework = response['homeworks']
     if not isinstance(homework, list):
         error = 'Homework не является списком'
         raise TypeError(error)
     if not homework:
         error = f'Список {homework[0]} пуст'
-        raise ErrorResponse.EmptyValue(error)
+        raise EmptyValue(error)
     logging.debug('Status of homework update')
+    if not response.get('current_date'):
+        raise CurrentDateError('В словаре отсутствует ключ: "current_date".')
     return homework
 
 
@@ -94,7 +90,7 @@ def parse_status(homework):
     homework_status = homework['status']
     if homework_status not in HOMEWORK_STATUSES:
         error = f'Неизвестный статус: {homework_status}'
-        raise ErrorResponse.UnknownStatusHW(error)
+        raise UnknownStatusHW(error)
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -126,24 +122,38 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time() - 30 * 24 * 60 * 60)
     status = ''
+    previous_error = {}
+    current_error = {}
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homework = check_response(response)
-            if homework:
-                message = parse_status(homework[0])
-                if message != status:
-                    send_message(bot, message)
-                    status = message
+            hw_timestamp = response.get('current_date')
+            if not check_response(response):
+                logging.debug('Отсутствуют новые статусы в ответе API.')
+                logging.info('Список домашних работ пуст.')
+            else:
+                homeworks = check_response(response)
+                homework = homeworks[0]
+                homework_verdict = parse_status(homework)
+                send_message(bot, homework_verdict)
+            current_timestamp = hw_timestamp
+        except telegram.TelegramError as error:
+            message = f'Сбой при отправке сообщения: {error}'
+            logging.exception(message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
-            if message != status:
+            logging.exception(message)
+            current_error['message'] = message
+            if previous_error != current_error:
                 send_message(bot, message)
-                status = message
-            logging.error(error, exc_info=True)
+                previous_error = current_error.copy()
         finally:
             time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)s %(name)s %(message)s',
+        level=logging.INFO
+    )
     main()
