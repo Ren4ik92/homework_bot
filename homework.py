@@ -5,7 +5,6 @@ import time
 import requests
 import telegram
 from exceptions import (ErrorResponse,
-                        EmptyValue,
                         UnknownStatusHW,
                         CurrentDateError,
                         TelegramError,
@@ -38,7 +37,7 @@ def send_message(bot, message):
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.info('Отправляем сообщение')
-    except TelegramError:
+    except Exception:
         raise TelegramError(f'Сбои при отправке сообщения в Telegram: '
                             f'{message}')
     else:
@@ -53,13 +52,15 @@ def get_api_answer(current_timestamp):
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         logging.info(f'Отправляем запрос к API. endpoint: {ENDPOINT},'
                      f'headers: {HEADERS}, params: {params}')
+        if response.status_code != 200:
+            error = (f'Неудовлетворительный статус ответа: {response.status_code},'
+                     f' Причина: {response.reason},'
+                     f' Текст ответа: {response.text},'
+                     f' с параметрами: {params}')
+            raise ErrorResponse(error)
+        return response.json()
     except Exception as error:
-        logging.error(f'Ошибка при запросе к основному API: {error}')
         raise BadAPIRequest(error)
-    if response.status_code != 200:
-        error = f'Неудовлетворительный статус ответа: {response.status_code}'
-        raise ErrorResponse(error)
-    return response.json()
 
 
 def check_response(response):
@@ -72,11 +73,8 @@ def check_response(response):
         raise WrongKeyHomeworks(error)
     homework = response['homeworks']
     if not isinstance(homework, list):
-        error = 'Homework не является списком'
+        error = f'Homework не является списком {homework}'
         raise TypeError(error)
-    if not homework:
-        error = f'Список {homework[0]} пуст'
-        raise EmptyValue(error)
     logging.debug('Status of homework update')
     if not response.get('current_date'):
         raise CurrentDateError('В словаре отсутствует ключ: "current_date".')
@@ -86,13 +84,13 @@ def check_response(response):
 def parse_status(homework):
     """Информация о статусе домашней работы."""
     if not isinstance(homework, dict):
-        error = 'Homework не является словарем'
+        error = f'Homework не является словарем {homework}'
         raise TypeError(error)
     if 'homework_name' not in homework:
-        error = 'Ключ homework_name отсутствует'
+        error = f'Ключ homework_name отсутствует {homework}'
         raise KeyError(error)
     if 'status' not in homework:
-        error = 'Ключ status отсутствует'
+        error = f'Ключ status отсутствует {homework}'
         raise KeyError(error)
     homework_name = homework['homework_name']
     homework_status = homework['status']
@@ -129,24 +127,34 @@ def main():
         sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time() - 30 * 24 * 60 * 60)
+    response = get_api_answer(current_timestamp)
+    homeworks = check_response(response)
     previous_error = {}
     current_error = {}
+    status_tracking = {}
     while True:
         try:
-            response = get_api_answer(current_timestamp)
-            hw_timestamp = response.get('current_date')
             if not check_response(response):
                 logging.debug('Отсутствуют новые статусы в ответе API.')
                 logging.info('Список домашних работ пуст.')
-            else:
-                homeworks = check_response(response)
-                homework = homeworks[0]
-                homework_verdict = parse_status(homework)
-                send_message(bot, homework_verdict)
+            response = get_api_answer(current_timestamp)
+            hw_timestamp = response.get('current_date')
+            for homework in homeworks:
+                hw_name = homework.get('homework_name')
+                hw_status = homework.get('status')
+                if hw_name not in status_tracking:
+                    status_tracking[hw_name] = hw_status
+                    message = parse_status(homework)
+                    send_message(bot, message)
+                elif status_tracking[hw_name] != hw_status:
+                    status_tracking[hw_name] = hw_status
+                    message = parse_status(homework)
+                    send_message(bot, message)
             current_timestamp = hw_timestamp
-        except telegram.TelegramError as error:
+        except TelegramError as error:
             message = f'Сбой при отправке сообщения: {error}'
             logging.exception(message)
+            logging.error(f'Ошибка при запросе к основному API: {error}')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.exception(message)
