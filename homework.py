@@ -147,7 +147,7 @@ def main():
                     status_tracking[hw_name] = hw_status
                     message = parse_status(homework)
                     send_message(bot, message)
-                elif status_tracking[hw_name] != hw_status:
+                if status_tracking[hw_name] != hw_status:
                     status_tracking[hw_name] = hw_status
                     message = parse_status(homework)
                     send_message(bot, message)
