@@ -53,8 +53,7 @@ def get_api_answer(current_timestamp):
         logging.info(f'Отправляем запрос к API. endpoint: {ENDPOINT},'
                      f'headers: {HEADERS}, params: {params}')
         if response.status_code != 200:
-            error = (f'Неудовлетворительный статус ответа:'
-                     f' {response.status_code},'
+            error = (f'Неудовлетворительный статус ответа: {response.status_code},'
                      f' Причина: {response.reason},'
                      f' Текст ответа: {response.text},'
                      f' с параметрами: {params}')
@@ -128,29 +127,23 @@ def main():
         sys.exit()
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time() - 30 * 24 * 60 * 60)
-    response = get_api_answer(current_timestamp)
-    homeworks = check_response(response)
     previous_error = {}
     current_error = {}
-    status_tracking = {}
+    old_homework_status = ''
     while True:
         try:
+            all_homework = get_api_answer(current_timestamp)
+            homework = check_response(all_homework)[0]
+            homework_status = parse_status(homework)
+            response = get_api_answer(current_timestamp)
+            hw_timestamp = response.get('current_date')
             if not check_response(response):
                 logging.debug('Отсутствуют новые статусы в ответе API.')
                 logging.info('Список домашних работ пуст.')
-            response = get_api_answer(current_timestamp)
-            hw_timestamp = response.get('current_date')
-            for homework in homeworks:
-                hw_name = homework.get('homework_name')
-                hw_status = homework.get('status')
-                if hw_name not in status_tracking:
-                    status_tracking[hw_name] = hw_status
-                    message = parse_status(homework)
-                    send_message(bot, message)
-                if status_tracking[hw_name] != hw_status:
-                    status_tracking[hw_name] = hw_status
-                    message = parse_status(homework)
-                    send_message(bot, message)
+            if homework_status != old_homework_status:
+                old_homework_status = homework_status
+                send_message(bot, homework_status)
+                logging.info('Сообщение отправлено')
             current_timestamp = hw_timestamp
         except TelegramError as error:
             message = f'Сбой при отправке сообщения: {error}'
