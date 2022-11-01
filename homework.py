@@ -53,7 +53,8 @@ def get_api_answer(current_timestamp):
         logging.info(f'Отправляем запрос к API. endpoint: {ENDPOINT},'
                      f'headers: {HEADERS}, params: {params}')
         if response.status_code != 200:
-            error = (f'Неудовлетворительный статус ответа: {response.status_code},'
+            error = (f'Неудовлетворительный статус ответа:'
+                     f' {response.status_code},'
                      f' Причина: {response.reason},'
                      f' Текст ответа: {response.text},'
                      f' с параметрами: {params}')
