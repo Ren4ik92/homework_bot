@@ -122,6 +122,7 @@ def check_tokens():
     return True
 
 
+# falke8: nopa: C901
 def main():
     """Основная функция."""
     if not check_tokens():
