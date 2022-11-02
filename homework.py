@@ -133,15 +133,15 @@ def main():
     old_homework_status = ''
     while True:
         try:
-
             all_homework = get_api_answer(current_timestamp)
-            homework = check_response(all_homework)[0]
+            if all_homework:
+                homework = check_response(all_homework)[0]
             homework_status = parse_status(homework)
             hw_timestamp = all_homework.get('current_date')
             if not homework:
                 logging.debug('Отсутствуют новые статусы в ответе API.')
                 logging.info('Список домашних работ пуст.')
-            if homework_status != old_homework_status and len(homework) != 0:
+            if homework_status != old_homework_status:
                 old_homework_status = homework_status
                 send_message(bot, homework_status)
                 logging.info('Сообщение отправлено')
