@@ -136,20 +136,23 @@ def main():
             all_homework = get_api_answer(current_timestamp)
             homework = check_response(all_homework)[0]
             homework_status = parse_status(homework)
-            response = get_api_answer(current_timestamp)
-            hw_timestamp = response.get('current_date')
-            if not check_response(response):
+            hw_timestamp = all_homework.get('current_date')
+            if not homework:
                 logging.debug('Отсутствуют новые статусы в ответе API.')
                 logging.info('Список домашних работ пуст.')
             if homework_status != old_homework_status:
                 old_homework_status = homework_status
-                send_message(bot, homework_status)
-                logging.info('Сообщение отправлено')
+                if homework:
+                    send_message(bot, homework_status)
+                    logging.info('Сообщение отправлено')
             current_timestamp = hw_timestamp
         except TelegramError as error:
             message = f'Сбой при отправке сообщения: {error}'
             logging.exception(message)
             logging.error(f'Ошибка при запросе к основному API: {error}')
+        except IndexError as error:
+            message = f'Сбой в работе программы: {error}'
+            logging.exception(message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.exception(message)
