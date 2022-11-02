@@ -130,24 +130,18 @@ def main():
     current_timestamp = int(time.time() - 30 * 24 * 60 * 60)
     previous_error = {}
     current_error = {}
-    current_report = {
-        'name': '',
-        'output': ''
-    }
     old_homework_status = ''
     while True:
         try:
+
             all_homework = get_api_answer(current_timestamp)
             homework = check_response(all_homework)[0]
             homework_status = parse_status(homework)
             hw_timestamp = all_homework.get('current_date')
-            if homework:
-                current_report['name'] = homework.get('homework_name')
-                current_report['output'] = homework.get('status')
-            else:
+            if not homework:
                 logging.debug('Отсутствуют новые статусы в ответе API.')
                 logging.info('Список домашних работ пуст.')
-            if homework_status != old_homework_status:
+            if homework_status != old_homework_status and len(homework) != 0:
                 old_homework_status = homework_status
                 send_message(bot, homework_status)
                 logging.info('Сообщение отправлено')
