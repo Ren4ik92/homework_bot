@@ -140,11 +140,10 @@ def main():
             if not homework:
                 logging.debug('Отсутствуют новые статусы в ответе API.')
                 logging.info('Список домашних работ пуст.')
-            if homework_status != old_homework_status:
+            if homework_status != old_homework_status and homework:
                 old_homework_status = homework_status
-                if homework:
-                    send_message(bot, homework_status)
-                    logging.info('Сообщение отправлено')
+                send_message(bot, homework_status)
+                logging.info('Сообщение отправлено')
             current_timestamp = hw_timestamp
         except TelegramError as error:
             message = f'Сбой при отправке сообщения: {error}'
