@@ -134,7 +134,7 @@ def main():
     while True:
         try:
             all_homework = get_api_answer(current_timestamp)
-            if all_homework:
+            if len(all_homework['homeworks']) > 0:
                 homework = check_response(all_homework)[0]
             homework_status = parse_status(homework)
             hw_timestamp = all_homework.get('current_date')
