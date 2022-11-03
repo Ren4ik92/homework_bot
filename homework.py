@@ -135,8 +135,9 @@ def main():
     while True:
         try:
             all_homework = get_api_answer(current_timestamp)
-            if len(check_response(all_homework)) > 0:
-                homework = check_response(all_homework)[0]
+            check_response_work = check_response(all_homework)
+            if len(check_response_work) > 0:
+                homework = check_response_work[0]
                 homework_status = parse_status(homework)
                 if homework_status != old_homework_status:
                     old_homework_status = homework_status
