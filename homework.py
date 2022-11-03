@@ -135,17 +135,14 @@ def main():
     while True:
         try:
             all_homework = get_api_answer(current_timestamp)
-            if len(all_homework['homeworks']) > 0:
+            if len(check_response(all_homework)) > 0:
                 homework = check_response(all_homework)[0]
-            homework_status = parse_status(homework)
+                homework_status = parse_status(homework)
+                if homework_status != old_homework_status:
+                    old_homework_status = homework_status
+                    send_message(bot, homework_status)
+                    logging.info('Сообщение отправлено')
             hw_timestamp = all_homework.get('current_date')
-            if not homework:
-                logging.debug('Отсутствуют новые статусы в ответе API.')
-                logging.info('Список домашних работ пуст.')
-            if homework_status != old_homework_status:
-                old_homework_status = homework_status
-                send_message(bot, homework_status)
-                logging.info('Сообщение отправлено')
             current_timestamp = hw_timestamp
         except TelegramError as error:
             message = f'Сбой при отправке сообщения: {error}'
