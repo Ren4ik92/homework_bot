@@ -135,7 +135,7 @@ def main():
     while True:
         try:
             all_homework = get_api_answer(current_timestamp)
-            if len(all_homework['homeworks']) > 0:
+            if len(check_response(all_homework)) > 0:
                 homework = check_response(all_homework)[0]
                 homework_status = parse_status(homework)
                 if homework_status != old_homework_status:
@@ -144,15 +144,9 @@ def main():
                     logging.info('Сообщение отправлено')
                 else:
                     logging.debug('Статус не изменился')
-            hw_timestamp = all_homework.get('current_date')
-            current_timestamp = hw_timestamp
+            current_timestamp = all_homework.get('current_date')
         except TelegramError as error:
-            message = f'Сбой при отправке сообщения: {error}'
-            logging.exception(message)
             logging.error(f'Ошибка при запросе к основному API: {error}')
-        except IndexError as error:
-            message = f'Сбой в работе программы: {error}'
-            logging.exception(message)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.exception(message)
